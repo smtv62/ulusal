@@ -24,10 +24,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Playwright Tarayıcılarını ve Sistem Bağımlılıklarını Kur
+- name: Playwright Tarayıcılarını ve Sistem Bağımlılıklarını Kur
       run: |
-        playwright install chromium
-        sudo playwright install-deps chromium
+        python -m playwright install chromium
+        python -m playwright install-deps chromium
 
     - name: Botu Çalıştır
       run: python bot.py
