@@ -2,10 +2,10 @@ import asyncio
 import sys
 from playwright.async_api import async_playwright
 
-# Çıktı dosyamızın yeni adı
+# Çıktı dosyamızın adı
 CIKIS_DOSYASI = "ulusal.m3u"
 
-# Takip edilecek kanalların listesi (Buraya istediğiniz kadar kanal ekleyebilirsiniz)
+# Takip edilecek kanalların listesi (ATV eklendi)
 KANALLAR = [
     {
         "isim": "Star TV",
@@ -16,8 +16,14 @@ KANALLAR = [
     {
         "isim": "Show TV",
         "url": "https://www.showtv.com.tr/canli-yayin",
-        "anahtar": ".m3u8", # Show TV için genel m3u8 uzantısını arıyoruz
+        "anahtar": ".m3u8", 
         "logo": "https://mo.ciner.com.tr/showtv/iletisim/logo.png"
+    },
+    {
+        "isim": "ATV",
+        "url": "https://www.atv.com.tr/canli-yayin",
+        "anahtar": ".m3u8", # ATV'nin dinamik m3u8 uzantılı ana akışını arıyoruz
+        "logo": "https://iaatv.tmgrup.com.tr/assets/atv/images/logo.png"
     }
 ]
 
@@ -34,9 +40,9 @@ async def get_m3u8_link(browser, kanal):
         nonlocal m3u8_url
         url = request.url
         
-        # Link daha önce BULUNMADIYSA ve aranan anahtar kelime URL içindeyse
-        # (Ayrıca .ts gibi video parçacıklarını yanlışlıkla almamak için filtreliyoruz)
-        if m3u8_url is None and kanal["anahtar"] in url and ".ts" not in url:
+        # Link daha önce BULUNMADIYSA, aranan anahtar kelime URL içindeyse
+        # ve .ts (parça) veya reklam/analitik linki değilse yakala
+        if m3u8_url is None and kanal["anahtar"] in url and ".ts" not in url and "analytics" not in url:
             m3u8_url = url
 
     page.on("request", handle_request)
@@ -52,7 +58,7 @@ async def get_m3u8_link(browser, kanal):
 
 async def main():
     async with async_playwright() as p:
-        # Linux / GitHub sunucularında hata vermemesi için argümanlar
+        # Linux / GitHub sunucularında hata vermemesi için gerekli argümanlar
         browser = await p.chromium.launch(
             headless=True,
             args=[
@@ -62,7 +68,7 @@ async def main():
             ]
         )
         
-        # M3U dosyasının başlığını oluşturuyoruz
+        # M3U dosyasının başlığı
         m3u_icerik = "#EXTM3U\n"
         
         # Listedeki tüm kanalları sırayla gez
