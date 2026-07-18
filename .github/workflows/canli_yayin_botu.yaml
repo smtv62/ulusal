@@ -1,0 +1,41 @@
+name: Canli Yayin Yakalama Botu
+
+on:
+  schedule:
+    # Her gün UTC ile 00:00'da (TSİ 03:00) çalışır.
+    - cron: '0 0 * * *'
+  workflow_dispatch: # İstediğiniz zaman GitHub panelinden elle başlatabilmek için
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Depoyu Klonla (Checkout)
+      uses: actions/checkout@v4
+
+    - name: Python Kurulumu
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: Bağımlılıkları Yükle
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Playwright Tarayıcılarını ve Sistem Bağımlılıklarını Kur
+      run: |
+        playwright install chromium
+        sudo playwright install-deps chromium
+
+    - name: Botu Çalıştır
+      run: python bot.py
+
+    - name: Kaydedilen Videoyu Artifact Olarak Sakla
+      if: always() # Bot hata alsa veya süre sınırına takılsa bile videoyu yükle
+      uses: actions/upload-artifact@v4
+      with:
+        name: canlı-yayın-kaydı
+        path: startv_kayit.mp4
+        retention-days: 3 # Kaydedilen dosyayı GitHub'da 3 gün saklar (değiştirebilirsiniz)
