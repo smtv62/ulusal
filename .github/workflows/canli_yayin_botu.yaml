@@ -1,4 +1,4 @@
-name: Canli Yayin Yakalama Botu
+name: Ulusal Kanallar M3U Botu
 
 on:
   schedule:
@@ -10,7 +10,6 @@ jobs:
   run-bot:
     runs-on: ubuntu-latest
 
-    # Repoya dosya yazabilmesi için gerekli izinler
     permissions:
       contents: write
 
@@ -40,7 +39,7 @@ jobs:
       run: |
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
-        git add startv.m3u
-        # Eğer link değişmediyse hata vermemesi için || true ekledik
-        git commit -m "Güncel Star TV M3U Linki Yenilendi" || echo "Değişiklik yok."
+        git add ulusal.m3u
+        # Değişiklik yoksa hata vermemesi için || true kullanıyoruz
+        git commit -m "Güncel Ulusal M3U Linkleri Yenilendi" || echo "Değişiklik yok."
         git push
