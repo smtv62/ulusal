@@ -2,14 +2,57 @@ import asyncio
 import sys
 from playwright.async_api import async_playwright
 
-# Hedef kanal ayarları
-TARGET_URL = "https://www.startv.com.tr/canli-yayin"
-Cikis_Dosyasi = "startv.m3u"
+# Çıktı dosyamızın yeni adı
+CIKIS_DOSYASI = "ulusal.m3u"
 
-async def get_live_m3u8():
-    print("[*] Star TV canlı yayın linki aranıyor...")
+# Takip edilecek kanalların listesi (Buraya istediğiniz kadar kanal ekleyebilirsiniz)
+KANALLAR = [
+    {
+        "isim": "Star TV",
+        "url": "https://www.startv.com.tr/canli-yayin",
+        "anahtar": "startv_720p.m3u8",
+        "logo": "https://img-startv.mncdn.com/assets/images/logo.png"
+    },
+    {
+        "isim": "Show TV",
+        "url": "https://www.showtv.com.tr/canli-yayin",
+        "anahtar": ".m3u8", # Show TV için genel m3u8 uzantısını arıyoruz
+        "logo": "https://mo.ciner.com.tr/showtv/iletisim/logo.png"
+    }
+]
+
+async def get_m3u8_link(browser, kanal):
+    print(f"[*] {kanal['isim']} canlı yayın linki aranıyor...")
+    
+    # Her kanal için temiz ve bağımsız bir sayfa açıyoruz
+    context = await browser.new_context()
+    page = await context.new_page()
+    m3u8_url = None
+
+    # Arka plan network isteklerini dinleyen fonksiyon
+    async def handle_request(request):
+        nonlocal m3u8_url
+        url = request.url
+        
+        # Link daha önce BULUNMADIYSA ve aranan anahtar kelime URL içindeyse
+        # (Ayrıca .ts gibi video parçacıklarını yanlışlıkla almamak için filtreliyoruz)
+        if m3u8_url is None and kanal["anahtar"] in url and ".ts" not in url:
+            m3u8_url = url
+
+    page.on("request", handle_request)
+    
+    try:
+        # Sayfaya git ve ağ hareketleri durulana kadar maks 30sn bekle
+        await page.goto(kanal["url"], wait_until="networkidle", timeout=30000)
+    except Exception as e:
+        print(f"[!] {kanal['isim']} sayfası tam yüklenemedi (Yine de devam ediliyor): {e}")
+
+    await context.close()
+    return m3u8_url
+
+async def main():
     async with async_playwright() as p:
-        # Linux / GitHub sunucularında headless hata vermemesi için gerekli argümanlar
+        # Linux / GitHub sunucularında hata vermemesi için argümanlar
         browser = await p.chromium.launch(
             headless=True,
             args=[
@@ -19,51 +62,29 @@ async def get_live_m3u8():
             ]
         )
         
-        context = await browser.new_context()
-        page = await context.new_page()
-        m3u8_url = None
-
-        # Sayfanın arka planda yaptığı network isteklerini dinliyoruz
-        async def handle_request(request):
-            nonlocal m3u8_url
-            url = request.url
-            # Star TV'nin dinamik token içeren m3u8 akışını yakalıyoruz
-            if "startv_720p.m3u8" in url and "sid=" in url:
-                m3u8_url = url
-                print(f"[+] Yayın Linki Yakalandı: {url[:60]}...")
-
-        page.on("request", handle_request)
+        # M3U dosyasının başlığını oluşturuyoruz
+        m3u_icerik = "#EXTM3U\n"
         
-        try:
-            # Sayfaya git ve ağ hareketleri durulana kadar maks 30sn bekle
-            await page.goto(TARGET_URL, wait_until="networkidle", timeout=30000)
-        except Exception as e:
-            print(f"[!] Sayfa yüklenirken zaman aşımı (Yine de devam ediliyor): {e}")
-
+        # Listedeki tüm kanalları sırayla gez
+        for kanal in KANALLAR:
+            link = await get_m3u8_link(browser, kanal)
+            
+            if link:
+                print(f"[+] {kanal['isim']} Linki Yakalandı: {link[:60]}...")
+                # Oynatıcılar (IPTV vb.) için standart formatta satırları ekle
+                m3u_icerik += f'#EXTINF:-1 tvg-id="{kanal["isim"]}" tvg-name="{kanal["isim"]}" tvg-logo="{kanal["logo"]}" group-title="Ulusal",{kanal["isim"]}\n'
+                m3u_icerik += f'{link}\n'
+            else:
+                print(f"[-] HATA: {kanal['isim']} için m3u8 linki bulunamadı.")
+        
         await browser.close()
-        return m3u8_url
-
-def m3u_olustur(m3u8_link):
-    if not m3u8_link:
-        print("[-] HATA: Güncel m3u8 linki bulunamadı! M3U oluşturulamadı.")
-        sys.exit(1)
-
-    print(f"[+] M3U Dosyası Oluşturuluyor -> {Cikis_Dosyasi}")
-    
-    # Standart IPTV oynatıcı formatında M3U içeriği hazırlıyoruz
-    m3u_icerik = (
-        "#EXTM3U\n"
-        "#EXTINF:-1 tvg-id=\"StarTV\" tvg-name=\"Star TV\" tvg-logo=\"https://img-startv.mncdn.com/assets/images/logo.png\" group-title=\"Ulusal\",Star TV\n"
-        f"{m3u8_link}\n"
-    )
-    
-    # Dosyaya yazma işlemi
-    with open(Cikis_Dosyasi, "w", encoding="utf-8") as f:
-        f.write(m3u_icerik)
-    
-    print("[+] M3U başarıyla kaydedildi.")
+        
+        # Dosyaya kaydetme işlemi
+        print(f"\n[+] M3U Dosyası Oluşturuluyor -> {CIKIS_DOSYASI}")
+        with open(CIKIS_DOSYASI, "w", encoding="utf-8") as f:
+            f.write(m3u_icerik)
+            
+        print("[+] İşlem tamamlandı, M3U dosyası hazır.")
 
 if __name__ == "__main__":
-    # Linki yakala ve M3U formatında kaydet
-    guncel_link = asyncio.run(get_live_m3u8())
-    m3u_olustur(guncel_link)
+    asyncio.run(main())
