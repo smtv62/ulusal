@@ -5,7 +5,7 @@ from playwright.async_api import async_playwright
 # Çıktı dosyamızın adı
 CIKIS_DOSYASI = "ulusal.m3u"
 
-# Takip edilecek kanalların listesi (ATV eklendi)
+# Takip edilecek kanalların listesi
 KANALLAR = [
     {
         "isim": "Star TV",
@@ -18,12 +18,6 @@ KANALLAR = [
         "url": "https://www.showtv.com.tr/canli-yayin",
         "anahtar": ".m3u8", 
         "logo": "https://mo.ciner.com.tr/showtv/iletisim/logo.png"
-    },
-    {
-        "isim": "ATV",
-        "url": "https://www.atv.com.tr/canli-yayin",
-        "anahtar": ".m3u8", # ATV'nin dinamik m3u8 uzantılı ana akışını arıyoruz
-        "logo": "https://iaatv.tmgrup.com.tr/assets/atv/images/logo.png"
     }
 ]
 
@@ -77,8 +71,8 @@ async def main():
             
             if link:
                 print(f"[+] {kanal['isim']} Linki Yakalandı: {link[:60]}...")
-                # Oynatıcılar (IPTV vb.) için standart formatta satırları ekle
-                m3u_icerik += f'#EXTINF:-1 tvg-id="{kanal["isim"]}" tvg-name="{kanal["isim"]}" tvg-logo="{kanal["logo"]}" group-title="Ulusal",{kanal["isim"]}\n'
+                # Oynatıcılar için grup parametresi (group-title) olmadan standart formatta satırları ekle
+                m3u_icerik += f'#EXTINF:-1 tvg-id="{kanal["isim"]}" tvg-name="{kanal["isim"]}" tvg-logo="{kanal["logo"]}",{kanal["isim"]}\n'
                 m3u_icerik += f'{link}\n'
             else:
                 print(f"[-] HATA: {kanal['isim']} için m3u8 linki bulunamadı.")
